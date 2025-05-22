@@ -15,6 +15,12 @@ import retrofit2.Response
 
 class MainActivity : AppCompatActivity() {
     private lateinit var recyclerView:RecyclerView
+    private lateinit var adapter: CharacterAdapter
+    private val characterList = mutableListOf<Character>()
+    private var currentPage = 1
+    private var isLoading = false
+    private var isLastPage = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -22,29 +28,57 @@ class MainActivity : AppCompatActivity() {
         recyclerView = findViewById(R.id.recycler_view)
         recyclerView.layoutManager = LinearLayoutManager(this)
 
-        RetrofitCliente.api.getCharacters().enqueue(object : Callback<CharacterResponse> {
+        adapter = CharacterAdapter(characterList){character ->
+            val intent = Intent(this@MainActivity,DetailActivity::class.java).apply {
+                putExtra("character_name", character.name)
+                putExtra("character_status", character.status)
+                putExtra("character_species", character.species)
+                putExtra("character_gender", character.gender)
+            }
+            startActivity(intent)
+        }
+        recyclerView.adapter = adapter
+
+        recyclerView.addOnScrollListener(object :RecyclerView.OnScrollListener(){
+            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                super.onScrolled(recyclerView, dx, dy)
+                val layoutManager = recyclerView.layoutManager as LinearLayoutManager
+                val visibleItemCount = layoutManager.childCount
+                val totalItemCount = layoutManager.itemCount
+                val firstVisibleItemPosition = layoutManager.findFirstVisibleItemPosition()
+
+                if(!isLoading && !isLastPage){
+                    if((visibleItemCount + firstVisibleItemPosition)>=totalItemCount && firstVisibleItemPosition >=0){
+                        fetchCharacters(currentPage)
+                    }
+                }
+            }
+        })
+
+        fetchCharacters(currentPage)
+    }
+    private fun fetchCharacters(page:Int){
+        isLoading=true
+
+        RetrofitCliente.api.getCharacters(page).enqueue(object : Callback<CharacterResponse> {
             override fun onResponse(
                 call: Call<CharacterResponse>,
                 response: Response<CharacterResponse>
             ) {
-                if (response.isSuccessful) {
-                    val characters = response.body()?.results ?: emptyList()
-                    recyclerView.adapter = CharacterAdapter(characters) { character ->
-                        val intent = Intent(this@MainActivity, DetailActivity::class.java).apply {
-                            putExtra("character_name", character.name)
-                            putExtra("character_status", character.status)
-                            putExtra("character_species", character.species)
-                            putExtra("character_gender", character.gender)
-                        }
-                        startActivity(intent)
-                    }
+                if(response.isSuccessful){
+                    val newCharacters = response.body()?.results ?: emptyList()
+                    characterList.addAll(newCharacters)
+                    adapter.notifyDataSetChanged()
+                    isLastPage = newCharacters.isEmpty()
+                    currentPage++
                 }
+                isLoading=false
             }
-
             override fun onFailure(call: Call<CharacterResponse>, t: Throwable) {
+                isLoading = false
                 Toast.makeText(this@MainActivity, "Error al cargar datos", Toast.LENGTH_SHORT).show()
             }
-        })
 
+        })
     }
 }

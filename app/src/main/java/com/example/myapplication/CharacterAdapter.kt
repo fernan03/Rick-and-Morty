@@ -1,5 +1,6 @@
 package com.example.myapplication
 
+import android.content.Intent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -19,7 +20,17 @@ class CharacterAdapter(
         val imageView: ImageView = view.findViewById(R.id.character_image)
         init {
             view.setOnClickListener {
-                onItemClick(characters[adapterPosition])
+                val character = characters[adapterPosition]
+                val context = view.context
+                val intent = Intent(context, DetailActivity::class.java).apply {
+                    putExtra("name", character.name)
+                    putExtra("image", character.image)
+                    putExtra("species", character.species)
+                    putExtra("status", character.status)
+                    putExtra("gender", character.gender)
+                }
+
+                context.startActivity(intent)
             }
         }
     }
